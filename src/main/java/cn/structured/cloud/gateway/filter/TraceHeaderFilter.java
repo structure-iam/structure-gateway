@@ -3,22 +3,19 @@ package cn.structured.cloud.gateway.filter;
 import cn.hutool.core.util.StrUtil;
 import cn.structured.cloud.gateway.config.StructureGatewayProperties;
 import cn.structured.cloud.gateway.constant.GatewayConstants;
+import cn.structured.cloud.gateway.util.GatewayResponseUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -69,7 +66,7 @@ public class TraceHeaderFilter implements GlobalFilter, Ordered {
 
         if (!validationErrors.isEmpty()) {
             log.warn("Trace header validation failed for request: {}, errors: {}", path, validationErrors);
-            return badRequestResponse(exchange, String.join("; ", validationErrors));
+            return GatewayResponseUtil.badRequest(exchange, String.join("; ", validationErrors));
         }
 
         return chain.filter(exchange);
@@ -114,18 +111,6 @@ public class TraceHeaderFilter implements GlobalFilter, Ordered {
             }
         }
         return false;
-    }
-
-    /**
-     * 返回错误请求响应
-     */
-    private Mono<Void> badRequestResponse(ServerWebExchange exchange, String message) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.BAD_REQUEST);
-        response.getHeaders().add("Content-Type", "application/json;charset=UTF-8");
-        String body = "{\"code\":400,\"message\":\"" + message + "\"}";
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
     }
 
     @Override

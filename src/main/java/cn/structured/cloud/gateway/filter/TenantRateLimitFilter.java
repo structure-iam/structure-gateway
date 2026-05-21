@@ -15,14 +15,13 @@ import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import org.springframework.util.AntPathMatcher;
-
 import java.util.List;
 
 /**
@@ -142,7 +141,7 @@ public class TenantRateLimitFilter implements GlobalFilter, Ordered {
      * 执行限流检查
      */
     private Mono<Void> doRateLimitCheck(ServerWebExchange exchange, GatewayFilterChain chain,
-                                       String tenantId, JSONObject packageInfo) {
+                                        String tenantId, JSONObject packageInfo) {
         JSONObject rateLimitRules = packageInfo.getJSONObject("rateLimitRules");
         if (rateLimitRules == null) {
             log.debug("No rateLimitRules found for tenant: {}, skipping rate limit", tenantId);

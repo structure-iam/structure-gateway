@@ -13,10 +13,10 @@ import java.util.List;
 
 /**
  * 全局网关过滤器
- * 
+ * <p>
  * 职责：处理所有进入网关的请求
  * 目前作为预留过滤器，可用于全局预处理逻辑
- * 
+ * <p>
  * 执行顺序：Ordered.HIGHEST_PRECEDENCE（最高优先级）
  */
 @Component

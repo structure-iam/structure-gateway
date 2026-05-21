@@ -29,6 +29,11 @@
 
 - **请求 ID 生成和传递**：自动生成或传递 X-Request-Id
 
+### 统一响应格式
+
+- **全局异常处理**：所有错误响应使用统一的 JSON 格式
+- **业务错误码**：规范的业务错误码定义
+
 ## 技术栈
 
 - **Java 8**
@@ -50,17 +55,22 @@ structure-gateway/
 │   │   ├── RabbitMQConfig.java
 │   │   ├── RedisConfig.java
 │   │   ├── RouteLocatorConfig.java
-│   │   └── StructureGatewayProperties.java
+│   │   ├── DynamicRouteConfig.java
+│   │   ├── StructureGatewayProperties.java
+│   │   └── ErrorHandlerConfig.java
 │   ├── constant/            # 常量定义
 │   │   └── GatewayConstants.java
 │   ├── dto/                 # 数据传输对象
 │   │   └── TenantPackageMessage.java
+│   ├── exception/           # 异常处理
+│   │   └── GlobalExceptionHandler.java
 │   ├── filter/              # 网关过滤器
 │   │   ├── ReplayAttackPreventionFilter.java  # 重放攻击防护
 │   │   ├── TenantIdentificationFilter.java    # 租户识别
 │   │   ├── TenantRateLimitFilter.java         # 租户限流
 │   │   ├── TokenVerificationFilter.java       # Token验证
-│   │   └── TraceHeaderFilter.java             # 链路追踪
+│   │   ├── TraceHeaderFilter.java             # 链路追踪
+│   │   └── RequestLoggingFilter.java          # 请求日志
 │   ├── listener/            # 消息监听器
 │   │   └── TenantPackageMessageListener.java
 │   └── GatewayApplication.java               # 启动类
@@ -136,6 +146,151 @@ mvn spring-boot:run
 curl http://localhost:18000/actuator/health
 ```
 
+## 统一响应格式
+
+### 响应结构
+
+所有 API 响应都使用统一的 JSON 格式：
+
+```json
+{
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "success": true,
+    "data": {},
+    "timestamp": 1779374183584
+}
+```
+
+### 响应字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| code | String | 业务状态码 |
+| message | String | 响应消息 |
+| success | Boolean | 是否成功 |
+| data | Object | 响应数据 |
+| timestamp | Long | 时间戳（毫秒） |
+
+## 错误码说明
+
+### 业务错误码
+
+网关定义了以下业务错误码：
+
+| HTTP状态 | 错误码 | 说明 | 触发场景 |
+|---------|--------|------|----------|
+| 400 | BAD_REQUEST | 请求参数错误 | 参数校验失败、格式错误 |
+| 401 | INVALID_AUTHENTICATION | 认证信息无效 | Token格式错误、无法解析 |
+| 401 | UNAUTHORIZED | 未授权 | Token缺失或无效 |
+| 403 | FORBIDDEN | 禁止访问 | 权限不足、租户被禁用 |
+| 404 | NOT_FOUND | 资源未找到 | 路由未配置、服务不可用 |
+| 429 | TOO_MANY_REQUESTS | 请求过于频繁 | QPS/日/月限流触发 |
+| 500 | INTERNAL_ERROR | 服务器内部错误 | 系统异常 |
+| 502 | BAD_GATEWAY | 网关错误 | 后端服务返回错误响应 |
+| 503 | SERVICE_UNAVAILABLE | 服务不可用 | 后端服务宕机 |
+| 504 | GATEWAY_TIMEOUT | 网关超时 | 后端服务响应超时 |
+
+### 错误响应示例
+
+#### 400 Bad Request - 参数错误
+
+```json
+{
+    "code": "BAD_REQUEST",
+    "message": "X-Request-Id is required",
+    "success": false,
+    "data": null,
+    "timestamp": 1779374183584
+}
+```
+
+#### 401 Invalid Authentication - 认证信息无效
+
+```json
+{
+    "code": "INVALID_AUTHENTICATION",
+    "message": "Cannot convert access token to JSON",
+    "success": false,
+    "data": null,
+    "timestamp": 1779374183584
+}
+```
+
+#### 401 Unauthorized - 未授权
+
+```json
+{
+    "code": "UNAUTHORIZED",
+    "message": "Authorization header is required",
+    "success": false,
+    "data": null,
+    "timestamp": 1779374183584
+}
+```
+
+#### 403 Forbidden - 禁止访问
+
+```json
+{
+    "code": "FORBIDDEN",
+    "message": "租户不存在或未配置套餐",
+    "success": false,
+    "data": null,
+    "timestamp": 1779374183584
+}
+```
+
+#### 404 Not Found - 资源未找到
+
+```json
+{
+    "code": "NOT_FOUND",
+    "message": "Service not found",
+    "success": false,
+    "data": null,
+    "timestamp": 1779374183584
+}
+```
+
+#### 429 Too Many Requests - 请求过于频繁
+
+```json
+{
+    "code": "TOO_MANY_REQUESTS",
+    "message": "QPS limit exceeded",
+    "success": false,
+    "data": null,
+    "timestamp": 1779374183584
+}
+```
+
+#### 504 Gateway Timeout - 网关超时
+
+```json
+{
+    "code": "GATEWAY_TIMEOUT",
+    "message": "Gateway timeout",
+    "success": false,
+    "data": null,
+    "timestamp": 1779374183584
+}
+```
+
+### 过滤器错误码映射
+
+| 过滤器 | HTTP状态 | 错误码 | 典型错误消息 |
+|--------|---------|--------|-------------|
+| TraceHeaderFilter | 400 | BAD_REQUEST | X-Request-Id is required |
+| ReplayAttackPreventionFilter | 400 | BAD_REQUEST | X-Timestamp is required |
+| TokenVerificationFilter | 401 | UNAUTHORIZED | Authorization header is required |
+| TokenVerificationFilter | 401 | INVALID_AUTHENTICATION | Cannot convert access token to JSON |
+| TenantRateLimitFilter | 403 | FORBIDDEN | 租户不存在或未配置套餐 |
+| TenantRateLimitFilter | 429 | TOO_MANY_REQUESTS | QPS/Daily/Monthly limit exceeded |
+| GlobalExceptionHandler | 404 | NOT_FOUND | Service not found |
+| GlobalExceptionHandler | 504 | GATEWAY_TIMEOUT | Gateway timeout |
+| GlobalExceptionHandler | 500 | INTERNAL_ERROR | Internal server error |
+
 ## 配置说明
 
 ### 网关配置 (structure.gateway)
@@ -175,10 +330,13 @@ structure:
     trace-config:
       enabled: true                    # 是否启用
       require-request-id: true         # 是否要求请求 ID
-    # 排除路径（跳过所有检查）
+    # 排除路径（跳过 Token、限流等检查，但仍执行 Trace 和 Replay 检查）
     excluded-paths:
       - /auth/**
       - /actuator/**
+    # 安全检查排除路径（仍需验证 Trace 和 Replay）
+    security-excluded-paths:
+      - /user/**
 ```
 
 ### 路由配置
@@ -192,10 +350,14 @@ spring:
           uri: http://localhost:18002
           predicates:
             - Path=/auth/**
+          filters:
+            - StripPrefix=1
         - id: user-center
           uri: http://localhost:18001
           predicates:
             - Path=/user/**
+          filters:
+            - StripPrefix=1
 ```
 
 ## 请求头说明
@@ -204,7 +366,7 @@ spring:
 |------------|------|---------|------|
 | Authorization | Bearer Token | 是（非排除路径） | `Bearer eyJhbGciOiJIUzI1NiIs...` |
 | X-Tenant-Id | 租户 ID | 否（有默认值） | `tenant-123` |
-| X-Request-Id | 请求追踪 ID | 否（自动生成） | `uuid-xxxx-xxxx` |
+| X-Request-Id | 请求追踪 ID | 否（可配置必填） | `550e8400-e29b-41d4-a716-446655440000` |
 | X-Timestamp | 请求时间戳（毫秒） | 是（重放检查启用时） | `1715345678000` |
 | X-Nonce | 随机字符串 | 是（重放检查启用且 require-nonce=true） | `abc123xyz` |
 | X-Signature | 请求签名 | 是（重放检查启用且 require-signature=true） | `sha256hash` |
@@ -322,6 +484,20 @@ curl http://localhost:18000/auth/login
 curl -H "Authorization: Bearer your-token-here" \
      -H "X-Tenant-Id: 1" \
      http://localhost:18000/user/profile
+
+# 测试链路追踪（需要 X-Request-Id）
+curl -H "Authorization: Bearer your-token-here" \
+     -H "X-Request-Id: 550e8400-e29b-41d4-a716-446655440000" \
+     -H "X-Timestamp: $(date +%s000)" \
+     http://localhost:18000/user/profile
+
+# 测试限流触发
+for i in {1..100}; do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+       -H "Authorization: Bearer test-token" \
+       -H "X-Tenant-Id: 1" \
+       http://localhost:18000/user/profile
+done
 ```
 
 ## 监控
@@ -339,6 +515,16 @@ logging:
   level:
     cn.structured.cloud.gateway: DEBUG
     org.springframework.cloud.gateway: INFO
+```
+
+### 请求日志
+
+网关自动记录所有请求的详细信息：
+
+```
+[GATEWAY-IN] GET /user/profile - Headers: {content-type:[application/json]}
+[GATEWAY-OUT] GET /user/profile - Status: 200 - Duration: 150ms - Route: user-center -> http://localhost:18001
+[GATEWAY-ERROR] GET /user/nonexistent - Status: 404 - Route: user-center -> http://localhost:18001
 ```
 
 ## 部署

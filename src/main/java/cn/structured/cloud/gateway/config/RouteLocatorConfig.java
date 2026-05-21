@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * 路由定位器配置
- * 
+ * <p>
  * 职责：配置网关路由规则
  * 支持动态路由配置和服务发现
  */

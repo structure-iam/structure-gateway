@@ -54,26 +54,26 @@ public class DynamicRouteRefreshService {
     public void refreshRoutes() {
         try {
             List<DynamicRouteProperties.RouteDefinition> configRoutes = dynamicRouteProperties.getRoutes();
-            
+
             if (configRoutes == null || configRoutes.isEmpty()) {
                 log.warn("No routes configured in Nacos, using default routes");
                 return;
             }
 
             log.info("Refreshing {} routes from Nacos configuration", configRoutes.size());
-            
+
             // 先清除所有现有路由
             clearAllRoutes();
-            
+
             // 添加新路由
             List<RouteDefinition> routeDefinitions = convertToRouteDefinitions(configRoutes);
             for (RouteDefinition routeDefinition : routeDefinitions) {
                 addRoute(routeDefinition);
             }
-            
+
             // 发布路由刷新事件
             publishRefreshEvent();
-            
+
             log.info("Routes refreshed successfully");
         } catch (Exception e) {
             log.error("Failed to refresh routes", e);
@@ -86,24 +86,24 @@ public class DynamicRouteRefreshService {
      */
     private List<RouteDefinition> convertToRouteDefinitions(List<DynamicRouteProperties.RouteDefinition> configRoutes) {
         List<RouteDefinition> routeDefinitions = new ArrayList<>();
-        
+
         for (DynamicRouteProperties.RouteDefinition configRoute : configRoutes) {
             RouteDefinition routeDefinition = new RouteDefinition();
             routeDefinition.setId(configRoute.getId());
             routeDefinition.setUri(java.net.URI.create(configRoute.getUri()));
-            
+
             if (configRoute.getOrder() != null) {
                 routeDefinition.setOrder(configRoute.getOrder());
             }
-            
+
             // 设置断言
             if (configRoute.getPredicates() != null) {
                 List<PredicateDefinition> predicates = new ArrayList<>();
                 for (DynamicRouteProperties.PredicateDefinition configPredicate : configRoute.getPredicates()) {
                     PredicateDefinition predicate =
-                        new PredicateDefinition();
+                            new PredicateDefinition();
                     predicate.setName(configPredicate.getName());
-                    
+
                     if (StringUtils.hasText(configPredicate.getArgs())) {
                         predicate.setArgs(parseArgs(configPredicate.getArgs()));
                     }
@@ -111,15 +111,15 @@ public class DynamicRouteRefreshService {
                 }
                 routeDefinition.setPredicates(predicates);
             }
-            
+
             // 设置过滤器
             if (configRoute.getFilters() != null) {
                 List<FilterDefinition> filters = new ArrayList<>();
                 for (DynamicRouteProperties.FilterDefinition configFilter : configRoute.getFilters()) {
                     FilterDefinition filter =
-                        new FilterDefinition();
+                            new FilterDefinition();
                     filter.setName(configFilter.getName());
-                    
+
                     if (StringUtils.hasText(configFilter.getArgs())) {
                         filter.setArgs(parseArgs(configFilter.getArgs()));
                     }
@@ -127,11 +127,11 @@ public class DynamicRouteRefreshService {
                 }
                 routeDefinition.setFilters(filters);
             }
-            
+
             routeDefinitions.add(routeDefinition);
             log.debug("Converted route: {}", JSON.toJSONString(routeDefinition));
         }
-        
+
         return routeDefinitions;
     }
 
@@ -144,7 +144,7 @@ public class DynamicRouteRefreshService {
         if (!StringUtils.hasText(argsStr)) {
             return args;
         }
-        
+
         String[] pairs = argsStr.split(",");
         for (String pair : pairs) {
             String[] keyValue = pair.split("=");
@@ -160,8 +160,8 @@ public class DynamicRouteRefreshService {
      */
     private void addRoute(RouteDefinition routeDefinition) {
         routeDefinitionWriter.save(Mono.just(routeDefinition)).subscribe(
-            success -> log.debug("Route added: {}", routeDefinition.getId()),
-            error -> log.error("Failed to add route: {}", routeDefinition.getId(), error)
+                success -> log.debug("Route added: {}", routeDefinition.getId()),
+                error -> log.error("Failed to add route: {}", routeDefinition.getId(), error)
         );
     }
 
@@ -171,8 +171,8 @@ public class DynamicRouteRefreshService {
     private void clearAllRoutes() {
         try {
             routeDefinitionWriter.delete(Mono.empty()).subscribe(
-                success -> log.debug("All routes cleared"),
-                error -> log.warn("Failed to clear routes", error)
+                    success -> log.debug("All routes cleared"),
+                    error -> log.warn("Failed to clear routes", error)
             );
         } catch (Exception e) {
             log.warn("Error clearing routes", e);

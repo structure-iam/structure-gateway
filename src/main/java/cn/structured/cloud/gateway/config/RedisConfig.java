@@ -2,12 +2,12 @@ package cn.structured.cloud.gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 
 /**
  * Redis配置类
- * 
+ * <p>
  * 职责：配置Redis连接和相关Bean
  * 支持响应式Redis操作
  */

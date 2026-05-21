@@ -12,17 +12,17 @@ import java.util.List;
  * <p>
  * 配置示例：
  * spring:
- *   cloud:
- *     gateway:
- *       routes:
- *         - id: auth-center
- *           uri: lb://auth-center
- *           predicates:
- *             - Path=/auth/**
- *         - id: user-center
- *           uri: lb://user-center
- *           predicates:
- *             - Path=/user/**
+ * cloud:
+ * gateway:
+ * routes:
+ * - id: auth-center
+ * uri: lb://auth-center
+ * predicates:
+ * - Path=/auth/**
+ * - id: user-center
+ * uri: lb://user-center
+ * predicates:
+ * - Path=/user/**
  */
 @Data
 @RefreshScope
@@ -39,7 +39,7 @@ public class DynamicRouteProperties {
      */
     @Data
     public static class RouteDefinition {
-        
+
         /**
          * 路由ID
          */
@@ -71,7 +71,7 @@ public class DynamicRouteProperties {
      */
     @Data
     public static class PredicateDefinition {
-        
+
         /**
          * 断言名称（如 Path、Header、Query 等）
          */
@@ -101,7 +101,7 @@ public class DynamicRouteProperties {
      */
     @Data
     public static class FilterDefinition {
-        
+
         /**
          * 过滤器名称
          */
