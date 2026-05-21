@@ -1,5 +1,6 @@
 package cn.structured.cloud.gateway.filter;
 
+import cn.structured.cloud.gateway.constant.GatewayConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -24,7 +25,6 @@ import reactor.core.publisher.Mono;
 public class RequestLoggingFilter implements GlobalFilter, Ordered {
 
     private static final String START_TIME = "requestStartTime";
-    private static final String X_REQUEST_ID = "X-Request-Id";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -34,24 +34,25 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
         String method = request.getMethod().name();
-        String requestId = request.getHeaders().getFirst(X_REQUEST_ID);
+        String requestId = request.getHeaders().getFirst(GatewayConstants.REQUEST_ID_HEADER);
+        String deviceId = request.getHeaders().getFirst(GatewayConstants.DEVICE_ID_HEADER);
 
         // 获取租户ID
-        String tenantId = request.getHeaders().getFirst("X-Tenant-Id");
+        String tenantId = request.getHeaders().getFirst(GatewayConstants.TENANT_ID_HEADER);
 
         // 记录请求进入日志（简化版）
-        log.info("[GATEWAY-IN] requestId={} method={} path={} tenantId={}", requestId, method, path, tenantId);
+        log.info("[GATEWAY-IN] requestId={} method={} path={} tenantId={} deviceId={}", requestId, method, path, tenantId, deviceId);
 
         return chain.filter(exchange).then(Mono.fromRunnable(() -> {
             // 记录响应日志
-            logResponse(exchange, requestId);
+            logResponse(exchange, requestId, deviceId);
         }));
     }
 
     /**
      * 记录响应信息
      */
-    private void logResponse(ServerWebExchange exchange, String requestId) {
+    private void logResponse(ServerWebExchange exchange, String requestId, String deviceId) {
         ServerHttpRequest request = exchange.getRequest();
         ServerHttpResponse response = exchange.getResponse();
         String path = request.getURI().getPath();
@@ -73,8 +74,8 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         int statusCode = response.getStatusCode() != null ? response.getStatusCode().value() : -1;
 
         // 记录响应日志（简化版）
-        log.info("[GATEWAY-OUT] requestId={} method={} path={} status={} duration={}ms route={} target={}",
-                requestId, method, path, statusCode, duration, routeId, targetUri);
+        log.info("[GATEWAY-OUT] requestId={} method={} path={} status={} duration={}ms route={} target={} deviceId={}",
+                requestId, method, path, statusCode, duration, routeId, targetUri, deviceId);
     }
 
     @Override

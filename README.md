@@ -15,6 +15,7 @@
 
 - **Token 验证**：验证 Bearer Token 格式和有效性
 - **租户识别**：自动识别和处理租户信息
+- **设备识别**：验证设备标识，用于客户端识别和追踪
 - **重放攻击防护**：时间戳 + Nonce 机制防止重放攻击
 
 ### 限流控制
@@ -70,6 +71,7 @@ structure-gateway/
 │   │   ├── TenantRateLimitFilter.java         # 租户限流
 │   │   ├── TokenVerificationFilter.java       # Token验证
 │   │   ├── TraceHeaderFilter.java             # 链路追踪
+│   │   ├── DeviceIdentificationFilter.java    # 设备识别
 │   │   └── RequestLoggingFilter.java          # 请求日志
 │   ├── listener/            # 消息监听器
 │   │   └── TenantPackageMessageListener.java
@@ -282,6 +284,7 @@ curl http://localhost:18000/actuator/health
 | 过滤器 | HTTP状态 | 错误码 | 典型错误消息 |
 |--------|---------|--------|-------------|
 | TraceHeaderFilter | 400 | BAD_REQUEST | X-Request-Id is required |
+| DeviceIdentificationFilter | 400 | BAD_REQUEST | X-Device-Id is required |
 | ReplayAttackPreventionFilter | 400 | BAD_REQUEST | X-Timestamp is required |
 | TokenVerificationFilter | 401 | UNAUTHORIZED | Authorization header is required |
 | TokenVerificationFilter | 401 | INVALID_AUTHENTICATION | Cannot convert access token to JSON |
@@ -330,6 +333,12 @@ structure:
     trace-config:
       enabled: true                    # 是否启用
       require-request-id: true         # 是否要求请求 ID
+    # 设备识别配置
+    device-identification:
+      enabled: true                    # 是否启用设备识别
+      require-device-id: false         # 是否要求设备 ID（可配置）
+      max-device-id-length: 64        # 设备 ID 最大长度
+      log-device-id: true              # 是否在日志中记录设备 ID
     # 排除路径（跳过 Token、限流等检查，但仍执行 Trace 和 Replay 检查）
     excluded-paths:
       - /auth/**
@@ -406,6 +415,7 @@ spring:
 | X-Timestamp | 请求时间戳（毫秒） | 是（重放检查启用时） | `1715345678000` |
 | X-Nonce | 随机字符串 | 是（重放检查启用且 require-nonce=true） | `abc123xyz` |
 | X-Signature | 请求签名 | 是（重放检查启用且 require-signature=true） | `sha256hash` |
+| X-Device-Id | 设备标识 | 否（可配置必填） | 设备指纹/AppId/clientId 等 |
 
 ## 签名算法说明
 
@@ -469,6 +479,30 @@ structure:
 - 长度：8-64 个字符
 - 建议使用 UUID 或安全的随机字符串生成器
 - 示例：`550e8400-e29b-41d4-a716-446655440000`
+
+### 设备识别说明
+
+**X-Device-Id** 用于识别客户端设备，用于追踪和审计：
+
+- **作用**：标识请求来源的设备，用于日志追踪和审计
+- **客户端类型**：
+  - 浏览器端：设备指纹（如 fingerprintjs 生成的指纹）
+  - 移动端：设备 UUID 或 AppId
+  - 服务端：clientId 或 appId
+- **格式**：由客户端决定，网关不限制具体格式
+- **长度**：最大 64 字符（可配置）
+- **记录**：可在日志中记录设备 ID（可配置）
+
+**配置说明**：
+```yaml
+structure:
+  gateway:
+    device-identification:
+      enabled: true                    # 启用设备识别
+      require-device-id: false         # 是否必填
+      max-device-id-length: 64        # 最大长度
+      log-device-id: true             # 是否记录日志
+```
 
 ## 限流配置
 
