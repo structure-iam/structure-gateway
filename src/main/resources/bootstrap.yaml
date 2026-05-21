@@ -25,6 +25,9 @@ spring:
         enabled: ${NACOS_CONFIG_ENABLE:false}
       username: ${NACOS_USERNAME:structure}
       password: ${NACOS_PASSWORD:structure}
+
+  main:
+    allow-bean-definition-overriding: true
 management:
   endpoint:
     health:

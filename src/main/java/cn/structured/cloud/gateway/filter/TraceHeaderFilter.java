@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -36,6 +37,8 @@ public class TraceHeaderFilter implements GlobalFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(TraceHeaderFilter.class);
 
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
     @Autowired
     private StructureGatewayProperties gatewayProperties;
 
@@ -48,7 +51,7 @@ public class TraceHeaderFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
-        if (isExcludedPath(path)) {
+        if (isSecurityExcludedPath(path)) {
             return chain.filter(exchange);
         }
 
@@ -99,13 +102,13 @@ public class TraceHeaderFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 判断路径是否在排除列表中
+     * 判断路径是否在安全检查排除列表中
      */
-    private boolean isExcludedPath(String path) {
-        List<String> excludedPaths = gatewayProperties.getExcludedPaths();
-        if (excludedPaths != null) {
-            for (String excludedPath : excludedPaths) {
-                if (path.startsWith(excludedPath)) {
+    private boolean isSecurityExcludedPath(String path) {
+        List<String> securityExcludedPaths = gatewayProperties.getSecurityExcludedPaths();
+        if (securityExcludedPaths != null) {
+            for (String excludedPath : securityExcludedPaths) {
+                if (pathMatcher.match(excludedPath, path)) {
                     return true;
                 }
             }

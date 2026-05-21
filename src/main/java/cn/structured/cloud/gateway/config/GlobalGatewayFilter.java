@@ -5,6 +5,7 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -22,6 +23,7 @@ import java.util.List;
 public class GlobalGatewayFilter implements GlobalFilter, Ordered {
 
     private final StructureGatewayProperties gatewayProperties;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     public GlobalGatewayFilter(StructureGatewayProperties gatewayProperties) {
         this.gatewayProperties = gatewayProperties;
@@ -46,7 +48,7 @@ public class GlobalGatewayFilter implements GlobalFilter, Ordered {
         List<String> excludedPaths = gatewayProperties.getExcludedPaths();
         if (excludedPaths != null) {
             for (String excludedPath : excludedPaths) {
-                if (path.startsWith(excludedPath)) {
+                if (pathMatcher.match(excludedPath, path)) {
                     return true;
                 }
             }

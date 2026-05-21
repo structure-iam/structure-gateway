@@ -1,9 +1,6 @@
 package cn.structured.cloud.gateway.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.cloud.gateway.route.RouteLocator;
-import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -20,15 +17,5 @@ public class RouteLocatorConfig {
 
     public RouteLocatorConfig(StructureGatewayProperties gatewayProperties) {
         this.gatewayProperties = gatewayProperties;
-    }
-
-    /**
-     * 自定义路由配置
-     * 可以在这里添加静态路由规则
-     */
-    @Bean
-    public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
-        return builder.routes()
-                .build();
     }
 }

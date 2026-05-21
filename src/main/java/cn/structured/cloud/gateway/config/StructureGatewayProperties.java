@@ -34,8 +34,11 @@ public class StructureGatewayProperties {
     /** 链路追踪配置 */
     private TraceConfig traceConfig = new TraceConfig();
 
-    /** 排除路径（跳过部分检查） */
+    /** 排除路径（跳过部分检查：Token验证、限流等） */
     private List<String> excludedPaths = new ArrayList<>();
+
+    /** 安全检查排除路径（仍需验证Trace和Replay） */
+    private List<String> securityExcludedPaths = new ArrayList<>();
 
     /**
      * Token验证配置

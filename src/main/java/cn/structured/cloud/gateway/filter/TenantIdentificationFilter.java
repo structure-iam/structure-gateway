@@ -3,21 +3,20 @@ package cn.structured.cloud.gateway.filter;
 import cn.hutool.core.util.StrUtil;
 import cn.structured.cloud.gateway.config.StructureGatewayProperties;
 import cn.structured.cloud.gateway.constant.GatewayConstants;
+import cn.structured.cloud.gateway.util.GatewayResponseUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
+import org.springframework.util.AntPathMatcher;
+
 import java.util.List;
 
 /**
@@ -33,6 +32,8 @@ import java.util.List;
 public class TenantIdentificationFilter implements GlobalFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(TenantIdentificationFilter.class);
+
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     @Autowired
     private StructureGatewayProperties gatewayProperties;
@@ -83,7 +84,7 @@ public class TenantIdentificationFilter implements GlobalFilter, Ordered {
         List<String> excludedPaths = gatewayProperties.getExcludedPaths();
         if (excludedPaths != null) {
             for (String excludedPath : excludedPaths) {
-                if (path.startsWith(excludedPath)) {
+                if (pathMatcher.match(excludedPath, path)) {
                     return true;
                 }
             }
@@ -95,12 +96,7 @@ public class TenantIdentificationFilter implements GlobalFilter, Ordered {
      * 返回错误请求响应
      */
     private Mono<Void> badRequestResponse(ServerWebExchange exchange, String message) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.BAD_REQUEST);
-        response.getHeaders().add("Content-Type", "application/json;charset=UTF-8");
-        String body = "{\"code\":400,\"message\":\"" + message + "\"}";
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayResponseUtil.badRequest(exchange, message);
     }
 
     @Override
