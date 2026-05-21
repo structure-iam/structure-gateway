@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 /**
  * 请求日志过滤器
  * <p>
- * 职责：记录所有经过网关的请求和响应信息，用于排查路由转发问题
+ * 职责：记录所有经过网关的请求和响应信息，用于统计审计和计费
  * <p>
  * 执行顺序：最低优先级（Ordered.LOWEST_PRECEDENCE），确保在其他过滤器之后执行
  */
@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
 public class RequestLoggingFilter implements GlobalFilter, Ordered {
 
     private static final String START_TIME = "requestStartTime";
+    private static final String X_REQUEST_ID = "X-Request-Id";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -33,20 +34,24 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
         String method = request.getMethod().name();
+        String requestId = request.getHeaders().getFirst(X_REQUEST_ID);
 
-        // 记录请求进入日志
-        log.info("[GATEWAY-IN] {} {} - Headers: {}", method, path, request.getHeaders());
+        // 获取租户ID
+        String tenantId = request.getHeaders().getFirst("X-Tenant-Id");
+
+        // 记录请求进入日志（简化版）
+        log.info("[GATEWAY-IN] requestId={} method={} path={} tenantId={}", requestId, method, path, tenantId);
 
         return chain.filter(exchange).then(Mono.fromRunnable(() -> {
             // 记录响应日志
-            logResponse(exchange);
+            logResponse(exchange, requestId);
         }));
     }
 
     /**
      * 记录响应信息
      */
-    private void logResponse(ServerWebExchange exchange) {
+    private void logResponse(ServerWebExchange exchange, String requestId) {
         ServerHttpRequest request = exchange.getRequest();
         ServerHttpResponse response = exchange.getResponse();
         String path = request.getURI().getPath();
@@ -67,14 +72,9 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         // 获取响应状态
         int statusCode = response.getStatusCode() != null ? response.getStatusCode().value() : -1;
 
-        // 记录响应日志
-        log.info("[GATEWAY-OUT] {} {} - Status: {} - Duration: {}ms - Route: {} -> {}",
-                method, path, statusCode, duration, routeId, targetUri);
-
-        if (statusCode >= 400) {
-            log.warn("[GATEWAY-ERROR] Request failed - {} {} - Status: {} - Route: {} -> {}",
-                    method, path, statusCode, routeId, targetUri);
-        }
+        // 记录响应日志（简化版）
+        log.info("[GATEWAY-OUT] requestId={} method={} path={} status={} duration={}ms route={} target={}",
+                requestId, method, path, statusCode, duration, routeId, targetUri);
     }
 
     @Override
