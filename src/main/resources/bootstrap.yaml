@@ -11,7 +11,7 @@ spring:
       discovery:
         namespace: ${NACOS_NAMESPACE:5a4e4c1f-beda-4ae5-a3d7-428950e7473b}
         metadata:
-          version: @project.version@# 服务实例的版本号，可用于灰度发布
+          version: @version@
         group: ${NACOC_GROUP:${spring.profiles.active}}
         enabled: ${NACOS_DISCOVERY_ENABLE:false}
         username: ${NACOS_USERNAME:structure}
