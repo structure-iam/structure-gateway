@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.structured.cloud.gateway.config.StructureGatewayProperties;
 import cn.structured.cloud.gateway.constant.GatewayConstants;
 import cn.structured.cloud.gateway.util.GatewayResponseUtil;
+import cn.structured.cloud.gateway.util.SignatureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,8 +29,9 @@ import java.util.List;
  * 防护机制：
  * 1. 时间戳检查：验证请求时间戳是否在允许的时间范围内（默认5分钟）
  * 2. Nonce检查：验证随机字符串是否已被使用过（需要Redis支持）
+ * 3. 签名验证：验证请求签名是否正确（HMAC-SHA256）
  * <p>
- * 如果Redis不可用，仅进行时间戳检查，跳过Nonce验证
+ * 如果Redis不可用，仅进行时间戳和签名检查，跳过Nonce验证
  * <p>
  * 执行顺序：Ordered.HIGHEST_PRECEDENCE + 40
  */
@@ -114,6 +116,11 @@ public class ReplayAttackPreventionFilter implements GlobalFilter, Ordered {
             if (signature.length() < replayCheck.getMinSignatureLength()) {
                 log.warn("Invalid signature length: {} for request: {}", signature.length(), path);
                 return badRequestResponse(exchange, "X-Signature must be at least " + replayCheck.getMinSignatureLength() + " characters");
+            }
+
+            if (!SignatureUtil.verifySignature(request, timestampStr, nonce, signature, replayCheck.getSecretKey())) {
+                log.warn("Invalid signature for request: {}", path);
+                return badRequestResponse(exchange, "Invalid signature");
             }
         }
 

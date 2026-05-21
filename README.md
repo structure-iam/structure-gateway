@@ -339,6 +339,42 @@ structure:
       - /user/**
 ```
 
+### 重放攻击防护配置说明
+
+#### 三种验证机制对比
+
+| 配置项 | 功能 | 依赖 | 独立验证 | 适用场景 |
+|--------|------|------|----------|----------|
+| `require-timestamp: true` | 验证请求时间是否在有效范围内（默认±5分钟） | 无外部依赖 | ✅ 完全独立 | 基础防重放 |
+| `require-nonce: true` | 验证随机字符串是否已被使用过 | Redis | ✅ 完全独立 | 防止请求重放 |
+| `require-signature: true` | 验证请求内容是否被篡改（HMAC-SHA256） | 无外部依赖 | ⚠️ 逻辑依赖 | 防篡改 |
+
+#### 依赖关系详解
+
+**1. Timestamp 验证 - 完全独立**
+- 只验证请求时间是否在允许范围内
+- 不依赖其他两个配置
+- 不依赖外部服务（仅依赖系统时间）
+
+**2. Nonce 验证 - 独立检查**
+- 只检查 nonce 值是否已被使用过
+- 不依赖 timestamp 和 signature
+- 需要 Redis 存储已使用的 nonce（默认10分钟过期）
+
+**3. Signature 验证 - 逻辑依赖**
+- 使用 timestamp 和 nonce 作为签名内容的一部分
+- 但不强制要求它们必须存在（可以为 null）
+- 不依赖外部服务，但依赖 secret-key 配置
+
+#### 推荐的配置组合
+
+| 场景 | require-timestamp | require-nonce | require-signature | 安全性 | 说明 |
+|------|-------------------|---------------|-------------------|--------|------|
+| 基础防护 | ✅ true | ❌ false | ❌ false | ⭐⭐ | 仅防止过期请求 |
+| 防重放 | ✅ true | ✅ true | ❌ false | ⭐⭐⭐⭐ | 防止请求重复发送 |
+| 防篡改 | ✅ true | ❌ false | ✅ true | ⭐⭐⭐⭐ | 防止请求内容被修改 |
+| 高安全 | ✅ true | ✅ true | ✅ true | ⭐⭐⭐⭐⭐ | 同时防重放和防篡改 |
+
 ### 路由配置
 
 ```yaml
@@ -366,10 +402,73 @@ spring:
 |------------|------|---------|------|
 | Authorization | Bearer Token | 是（非排除路径） | `Bearer eyJhbGciOiJIUzI1NiIs...` |
 | X-Tenant-Id | 租户 ID | 否（有默认值） | `tenant-123` |
-| X-Request-Id | 请求追踪 ID | 否（可配置必填） | `550e8400-e29b-41d4-a716-446655440000` |
+| X-Request-Id | 请求追踪 ID | 否（可配置必填） | `550e8400-e29b-41d4-a716-446655440000` 或其他自定义字符串 |
 | X-Timestamp | 请求时间戳（毫秒） | 是（重放检查启用时） | `1715345678000` |
 | X-Nonce | 随机字符串 | 是（重放检查启用且 require-nonce=true） | `abc123xyz` |
 | X-Signature | 请求签名 | 是（重放检查启用且 require-signature=true） | `sha256hash` |
+
+## 签名算法说明
+
+### 签名算法（HMAC-SHA256）
+
+当 `structure.gateway.replay-check.require-signature=true` 时，请求必须包含有效的 `X-Signature` 请求头。
+
+#### 签名内容组成
+
+```
+签名内容 = method + path + timestamp + nonce
+```
+
+- `method`: HTTP 请求方法（大写），如 `GET`、`POST`
+- `path`: 请求路径，如 `/user/profile`
+- `timestamp`: `X-Timestamp` 请求头的值
+- `nonce`: `X-Nonce` 请求头的值（如果启用了 nonce 检查）
+
+#### 使用 HMAC-SHA256 签名
+
+使用配置的 `secret-key` 对签名内容进行 HMAC-SHA256 哈希，结果转换为十六进制字符串（小写）。
+
+#### 示例
+
+假设：
+- 请求方法：`GET`
+- 请求路径：`/user/profile`
+- X-Timestamp：`1715345678000`
+- X-Nonce：`abc123xyz`
+- 密钥：`your-secret-key-change-in-production`
+
+拼接后的内容：
+```
+GET/user/profile1715345678000abc123xyz
+```
+
+使用 HMAC-SHA256 签名后的结果就是 `X-Signature` 的值。
+
+#### 配置说明
+
+在 `application.yaml` 中配置：
+```yaml
+structure:
+  gateway:
+    replay-check:
+      enabled: true
+      require-signature: true  # 启用签名验证
+      secret-key: your-secret-key-change-in-production  # 签名密钥
+```
+
+### Nonce 说明
+
+**Nonce**（Number used once）是一个只使用一次的随机字符串，用于防止重放攻击：
+
+- **作用**：每个请求使用一个唯一的 nonce，服务器记录已使用过的 nonce
+- **防止重放**：即使攻击者截获了请求，也无法重新发送，因为 nonce 已被标记为已使用
+- **配合时间戳**：结合 `X-Timestamp` 一起使用，提供双重防护
+- **存储**：存储在 Redis 中，默认过期时间为 10 分钟（可配置）
+
+**Nonce 生成建议**：
+- 长度：8-64 个字符
+- 建议使用 UUID 或安全的随机字符串生成器
+- 示例：`550e8400-e29b-41d4-a716-446655440000`
 
 ## 限流配置
 

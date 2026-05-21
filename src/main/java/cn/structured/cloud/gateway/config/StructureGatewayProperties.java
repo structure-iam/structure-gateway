@@ -185,6 +185,11 @@ public class StructureGatewayProperties {
          * Nonce在Redis中的过期时间（分钟）
          */
         private long nonceExpireMinutes = 10;
+
+        /**
+         * 签名密钥
+         */
+        private String secretKey = "your-secret-key-change-in-production";
     }
 
     /**
