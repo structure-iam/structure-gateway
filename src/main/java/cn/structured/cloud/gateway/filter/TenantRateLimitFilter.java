@@ -15,21 +15,19 @@ import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 /**
  * 租户限流过滤器
  * <p>
  * 职责：根据租户套餐进行限流控制
  * 执行顺序：
- * 1. 检查是否在白名单，白名单租户直接放行
+ * 1. 检查是否是白名单租户，白名单租户直接放行
  * 2. 从Redis读取租户套餐信息，如果没有则直接拒绝
  * 3. 根据Redis中读取到的限流配置执行限流检查
  * <p>
@@ -39,6 +37,8 @@ import java.util.List;
  * - 月限流：每月请求总数
  * <p>
  * 所有限流逻辑仅依赖Redis，不使用本地YAML配置
+ * <p>
+ * 注意：限流完全基于租户ID，不受路径排除配置影响
  */
 @Component
 public class TenantRateLimitFilter implements GlobalFilter, Ordered {
@@ -47,8 +47,6 @@ public class TenantRateLimitFilter implements GlobalFilter, Ordered {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
-
-    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     @Autowired
     private StructureGatewayProperties gatewayProperties;
@@ -63,12 +61,6 @@ public class TenantRateLimitFilter implements GlobalFilter, Ordered {
         }
 
         ServerHttpRequest request = exchange.getRequest();
-        String path = request.getURI().getPath();
-
-        if (isExcludedPath(path)) {
-            return chain.filter(exchange);
-        }
-
         String tenantId = request.getHeaders().getFirst(GatewayConstants.TENANT_ID_HEADER);
 
         if (StrUtil.isBlank(tenantId)) {
@@ -284,21 +276,6 @@ public class TenantRateLimitFilter implements GlobalFilter, Ordered {
                     log.error("Error checking monthly limit for tenant: {}", tenantId, e);
                     return Mono.just(true);
                 });
-    }
-
-    /**
-     * 判断路径是否在排除列表中
-     */
-    private boolean isExcludedPath(String path) {
-        List<String> excludedPaths = gatewayProperties.getExcludedPaths();
-        if (excludedPaths != null) {
-            for (String excludedPath : excludedPaths) {
-                if (pathMatcher.match(excludedPath, path)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     /**
