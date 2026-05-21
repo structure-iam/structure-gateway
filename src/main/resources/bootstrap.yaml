@@ -29,15 +29,17 @@ spring:
   main:
     allow-bean-definition-overriding: true
 management:
-  endpoint:
-    health:
-      show-details: always
-
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
 ---
 spring:
   config:
     activate:
       on-profile: dev
+server:
+  port: 18000
 ---
 spring:
   config:
@@ -49,8 +51,5 @@ spring:
     activate:
       on-profile: pro
 management:
-  endpoint:
-    health:
-      show-details: always
   server:
     port: 7777

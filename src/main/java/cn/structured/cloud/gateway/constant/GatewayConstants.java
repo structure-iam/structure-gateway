@@ -46,6 +46,11 @@ public final class GatewayConstants {
     public static final String REQUEST_NONCE_HEADER = "X-Nonce";
 
     /**
+     * 设备ID请求头名称
+     */
+    public static final String DEVICE_ID_HEADER = "X-Device-Id";
+
+    /**
      * Redis限流Key前缀
      */
     public static final String REDIS_KEY_PREFIX_RATE_LIMIT = "gateway:rate:limit:";

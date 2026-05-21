@@ -25,7 +25,7 @@ import java.util.List;
  * 职责：验证和处理链路追踪相关的请求头
  * <p>
  * 验证项（可配置）：
- * - X-Request-Id：请求唯一标识（UUID格式）
+ * - X-Request-Id：请求唯一标识
  * <p>
  * 执行顺序：Ordered.HIGHEST_PRECEDENCE + 50
  */
@@ -59,8 +59,6 @@ public class TraceHeaderFilter implements GlobalFilter, Ordered {
             String requestId = request.getHeaders().getFirst(GatewayConstants.REQUEST_ID_HEADER);
             if (StrUtil.isBlank(requestId)) {
                 validationErrors.add("X-Request-Id is required");
-            } else if (!isValidUUID(requestId)) {
-                validationErrors.add("X-Request-Id must be a valid UUID");
             }
         }
 
@@ -72,31 +70,7 @@ public class TraceHeaderFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange);
     }
 
-    /**
-     * 验证UUID格式是否正确
-     */
-    private boolean isValidUUID(String str) {
-        if (str == null || str.length() != 36) {
-            return false;
-        }
-        String[] parts = str.split("-");
-        if (parts.length != 5) {
-            return false;
-        }
-        int[] expectedLengths = {8, 4, 4, 4, 12};
-        for (int i = 0; i < parts.length; i++) {
-            String part = parts[i];
-            if (part.length() != expectedLengths[i]) {
-                return false;
-            }
-            for (char c : part.toCharArray()) {
-                if (!Character.isDigit(c) && (c < 'a' || c > 'f') && (c < 'A' || c > 'F')) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
+
 
     /**
      * 判断路径是否在安全检查排除列表中

@@ -43,6 +43,11 @@ public class StructureGatewayProperties {
     private TraceConfig traceConfig = new TraceConfig();
 
     /**
+     * 设备识别配置
+     */
+    private DeviceIdentification deviceIdentification = new DeviceIdentification();
+
+    /**
      * 排除路径（跳过部分检查：Token验证、限流等）
      */
     private List<String> excludedPaths = new ArrayList<>();
@@ -185,6 +190,11 @@ public class StructureGatewayProperties {
          * Nonce在Redis中的过期时间（分钟）
          */
         private long nonceExpireMinutes = 10;
+
+        /**
+         * 签名密钥
+         */
+        private String secretKey = "your-secret-key-change-in-production";
     }
 
     /**
@@ -201,5 +211,31 @@ public class StructureGatewayProperties {
          * 是否要求X-Request-Id
          */
         private boolean requireRequestId = true;
+    }
+
+    /**
+     * 设备识别配置
+     */
+    @Data
+    public static class DeviceIdentification {
+        /**
+         * 是否启用设备识别
+         */
+        private boolean enabled = true;
+
+        /**
+         * 是否要求X-Device-Id
+         */
+        private boolean requireDeviceId = false;
+
+        /**
+         * 设备ID最大长度
+         */
+        private int maxDeviceIdLength = 64;
+
+        /**
+         * 是否在日志中记录设备ID
+         */
+        private boolean logDeviceId = true;
     }
 }
