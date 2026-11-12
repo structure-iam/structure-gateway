@@ -12,14 +12,14 @@ spring:
         namespace: ${NACOS_NAMESPACE:5a4e4c1f-beda-4ae5-a3d7-428950e7473b}
         metadata:
           version: @version@
-        group: ${NACOC_GROUP:${spring.profiles.active}}
+        group: ${NACOS_GROUP:${spring.profiles.active}}
         enabled: ${NACOS_DISCOVERY_ENABLE:false}
         username: ${NACOS_USERNAME:structure}
         password: ${NACOS_PASSWORD:structure}
       config:
         server-addr: ${NACOS_SERVER:nacos.structured.cn:8848}
         namespace: ${NACOS_NAMESPACE:5a4e4c1f-beda-4ae5-a3d7-428950e7473b}
-        group: ${NACOC_GROUP:${spring.profiles.active}}
+        group: ${NACOS_GROUP:${spring.profiles.active}}
         name: ${spring.application.name}
         file-extension: yaml
         enabled: ${NACOS_CONFIG_ENABLE:false}
